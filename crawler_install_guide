@@ -1,0 +1,17 @@
+1. Tool download image
+#source: https://github.com/hardikvasa/google-images-download
+install: pip install google_images_download
+         download chromedriver: https://sites.google.com/a/chromium.org/chromedriver/downloads
+usage: 
+  command: googleimagesdownload [Arguments...]
+  python script: 
+    from google_images_download import google_images_download
+    response = google_images_download.googleimagesdownload()
+    absolute_image_paths = response.download({&lt;Arguments...&gt;})
+
+example:
+  googleimagesdownload --keywords "key word" --limit 1000 -cd ./chromedriver
+  
+refs: https://forum.machinelearningcoban.com/t/crawl-nhanh-hinh-anh-tu-google-image-cho-bat-ki-chu-de-nao-ban-can/2510
+
+2. Crop image with face detect (ref: https://stackoverflow.com/questions/13211745/detect-face-then-autocrop-pictures)
