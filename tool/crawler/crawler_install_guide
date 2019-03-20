@@ -14,4 +14,7 @@ example:
   
 refs: https://forum.machinelearningcoban.com/t/crawl-nhanh-hinh-anh-tu-google-image-cho-bat-ki-chu-de-nao-ban-can/2510
 
-2. Crop image with face detect (ref: https://stackoverflow.com/questions/13211745/detect-face-then-autocrop-pictures)
+2. Crop image with face detect 
+    ref: 
+        https://stackoverflow.com/questions/13211745/detect-face-then-autocrop-pictures
+        autocrop: https://github.com/leblancfg/autocrop
