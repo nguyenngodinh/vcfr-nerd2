@@ -135,15 +135,12 @@ for i in gamma:
         if debugmode2:
             print(svmname)
         svm_model = svm.SVC(kernel='rbf', gamma = i, C=j, probability=True)
-        [svm_model.fit(features[train], labels[train]).score(features[test], labels[test]) for train, test in kfold.split(features)]
-        check = svm_model.predict(features)
-        check_res = check == labels
-        acc = (np.count_nonzero(check_res))/check_res.size * 100
-        if debugmode2:
-            print(i)
-            print(acc)
-            print('\n')
-        pickle.dump(svm_model, open(svmname, 'wb'), protocol = 2)
+        for train, test in kfold.split(features):
+            svm_model.fit(features[train], labels[train])
+            print(svm_model.score(features[test], labels[test]))
+            if debugmode2:
+                print("Gamma: {}, C: {}".format(i, j))
+        pickle.dump(svm_model, open(svmname, 'wb'), protocol = 2)    
 
 
 #run svm models and save result 
