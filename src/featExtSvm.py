@@ -1,4 +1,4 @@
- from __future__ import print_function
+from __future__ import print_function
 from __future__ import division
 import os
 import numpy as np
@@ -31,7 +31,7 @@ from keras import layers
 import csv
 from keras.models import Sequential
 
-#declare model 
+#declare vgg original model, dont run this piece if want to use vgg viettel model
 
 model = Sequential()
 model.add(ZeroPadding2D((1,1),input_shape=(224,224, 3)))
@@ -78,20 +78,26 @@ model.add(Convolution2D(2622, (1, 1)))
 model.add(Flatten(name='flatten'))
 model.add(Activation('softmax'))
 
+# load weight to original vgg model, dont run if use viettel vgg model 
 model.load_weights(filepath='/home/dev/aivivn/vgg_face_weights.h5')
 model.summary()
 extractor = Model(model.input, model.get_layer('flatten').output)
 extractor.summary()
 
+# load vgg viettel model
+load_model(filepath='path_to_file_model.h5')
+model.summary()
+extractor = Model(model.input, model.get_layer('flatten').output)
+extractor.summary()
 
 
 #get image and extract feature 
 debugmode1 = False
-imagearrs = []
+features = []
 labels = []
 stats = [0]*1000
-ifolder = '/home/dev/vn_celeb_face_recognition/train'
-ftrain = open('/home/dev/vn_celeb_face_recognition/train.csv', 'r')
+ifolder = '/home/dev/aivivn/traindataaug'
+ftrain = open('/home/dev/aivivn/traindataaugfile.csv', 'r')
 for x in ftrain:
     if debugmode1:
         print (x)
@@ -107,40 +113,85 @@ for x in ftrain:
             print(imgpath)
         img = image.load_img(imgpath, target_size=(224, 224))
         imgarr = image.img_to_array(img)
+        imgarr = np.expand_dims(img, axis=0)
+        feat = extractor.predict(imgarr)
         labels.append(int(iid))
-        imagearrs.append(imgarr)
+        features.append(feat)
 if debugmode1:
-    print(len(imagearrs))
+    print(len(features))
     print(len(labels))
     print(labels)
-imagearrs = np.asarray(imagearrs)
+features = np.asarray(features)
 labels = np.asarray(labels)
-features = extractor.predict(imagearrs)
 if debugmode1:
     print(labels.shape)
     print(features.shape)
-    
-    
-#train svm models 
+
+#  block of code to save feature to npy file
 import pickle
-from sklearn.model_selection import KFold, cross_val_score
+print(features.shape)
+print (labels.shape)
+
+ffname = '2622_features_dataaug.npy'
+filefeature = open(ffname, 'wb')
+pickle.dump(features, filefeature)
+
+lfname = 'labels_dataaug.npy'
+filelabel = open(lfname, 'wb')
+
+pickle.dump(labels, filelabel)
+
+# block of code to load feature from file npy 
+ffname = '2622_features_dataaug.npy'
+lflabel = 'labels_dataaug.npy'
+
+fffile = open(ffname, 'rb')
+lffile = open(lflabel, 'rb')
+
+testsavefeatures = pickle.load(fffile)
+testsavelabels = pickle.load(lffile)
+testsavefeatures = np.squeeze(testsavefeatures)
+print(testsavefeatures.shape)
+print(testsavelabels.shape)
+
+# run grid search cv for finding best parameters for svm model 
+import pickle
+from sklearn.svm import SVC
+from sklearn.model_selection import StratifiedKFold, cross_val_score, GridSearchCV
 debugmode2 = True 
-kfold = KFold(n_splits=5)
-svm_model_root = '/home/dev/svmmodels'
-gamma = [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100] 
-c = [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100] 
-for i in gamma:
-    for j in c:
-        svmname = os.path.join(svm_model_root, 'svm-' + str(i) + '-' + str(j) + '.sav')
-        if debugmode2:
-            print(svmname)
-        svm_model = svm.SVC(kernel='rbf', gamma = i, C=j, probability=True)
-        for train, test in kfold.split(features):
-            svm_model.fit(features[train], labels[train])
-            print(svm_model.score(features[test], labels[test]))
-            if debugmode2:
-                print("Gamma: {}, C: {}".format(i, j))
-        pickle.dump(svm_model, open(svmname, 'wb'), protocol = 2)    
+svm_model_root = '/home/dev/aivivn/svmnewmodels'
+c_range = [0.01, 0.03, 0.1, 0.3, 1, 3, 10, 30]
+gamma_range = np.logspace(-9, 3, 13)
+print(c_range)
+print(gamma_range)
+print(SVC().get_params().keys())
+param_grid = dict(gamma=gamma_range, C=c_range)
+kfold = StratifiedKFold(n_splits=4, shuffle=True, random_state=42)
+grid = GridSearchCV(SVC(), param_grid=param_grid, cv = kfold)
+grid.fit(testsavefeatures, testsavelabels)
+print("The best parameters are %s with a score of %0.2f"
+      % (grid.best_params_, grid.best_score_))
+
+#train svm models 
+# import pickle
+# from sklearn.model_selection import KFold, cross_val_score
+# debugmode2 = True 
+# kfold = KFold(n_splits=5)
+# svm_model_root = '/home/dev/svmmodels'
+# gamma = [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100] 
+# c = [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1, 0.03, 0.1, 0.3, 1, 3, 10, 30, 100] 
+# for i in gamma:
+#     for j in c:
+#         svmname = os.path.join(svm_model_root, 'svm-' + str(i) + '-' + str(j) + '.sav')
+#         if debugmode2:
+#             print(svmname)
+#         svm_model = svm.SVC(kernel='rbf', gamma = i, C=j, probability=True)
+#         for train, test in kfold.split(features):
+#             svm_model.fit(features[train], labels[train])
+#             print(svm_model.score(features[test], labels[test]))
+#             if debugmode2:
+#                 print("Gamma: {}, C: {}".format(i, j))
+#         pickle.dump(svm_model, open(svmname, 'wb'), protocol = 2)    
 
 
 #run svm models and save result 
